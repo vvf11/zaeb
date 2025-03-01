@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verifiable Tetris with ZKP</title>
+  <meta charset="UTF-8">
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { background: black; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    canvas { border: 1px solid white; }
+    #proof { color: white; font-family: Arial; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<canvas width="320" height="640" id="game"></canvas>
+<div id="proof"></div>
+<script src="tetris.js" defer></script>
+<script type="module">
+  import init, { generate_proof, malloc, free } from './pkg/tetris_zkp.js';
+
+  let wasm;
+
+  async function run() {
+      try {
+          await init(); // Инициализация WASM
+          wasm = { memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }) }; // Увеличим максимальную память
+          console.log("WASM initialized successfully");
+      } catch (e) {
+          console.error("WASM initialization failed:", e);
+      }
+  }
+
+  // Определяем generateProof в глобальном контексте window
+  window.generateProof = function() {
+      if (!wasm || !wasm.memory) {
+          console.error("WASM not initialized");
+          document.getElementById('proof').innerText = "WASM not initialized";
+          return;
+      }
+      console.log("Generating proof, gameState:", JSON.stringify(gameState, null, 2));
+      // Упрощаем gameState, оставляя только ключевые данные
+      const simplifiedGameState = {
+          finalScore: gameState.finalScore,
+          finalTime: gameState.finalTime,
+          movesCount: gameState.moves.length
+      };
+      const gameData = JSON.stringify(simplifiedGameState);
+      console.log("Simplified gameData:", gameData);
+      const dataPtr = malloc(gameData.length + 1); // Выделяем память для строки + нулевой терминатор
+      if (dataPtr === 0) {
+          console.error("Failed to allocate memory for gameData");
+          document.getElementById('proof').innerText = "Memory allocation failed";
+          return;
+      }
+      const encoder = new TextEncoder();
+      const dataArray = encoder.encode(gameData);
+      const memory = new Uint8Array(wasm.memory.buffer);
+      try {
+          memory.set(dataArray, dataPtr); // Копируем данные в память
+          memory[dataPtr + dataArray.length] = 0; // Добавляем нулевой терминатор
+
+          const proofPtr = generate_proof(dataPtr);
+          if (proofPtr === 0) {
+              throw new Error("Proof generation failed: null pointer");
+          }
+          const proofLength = memory.indexOf(0, proofPtr); // Находим длину строки до нулевого терминатора
+          if (proofLength === -1) {
+              throw new Error("Invalid proof length");
+          }
+          const proof = new TextDecoder().decode(memory.subarray(proofPtr, proofLength));
+          console.log("Proof generated:", proof);
+          document.getElementById('proof').innerText = `ZKP: ${proof}`;
+      } catch (e) {
+          console.error("Error in generateProof:", e);
+          document.getElementById('proof').innerText = `Error: ${e.message}`;
+      } finally {
+          free(dataPtr, gameData.length + 1); // Освобождаем память для входных данных
+          if (proofPtr) {
+              // Определяем длину proof, если она доступна, иначе используем 1
+              const proofLength = proof ? proof.length + 1 : 1;
+              free(proofPtr, proofLength); // Освобождаем память для результата
+          }
+      }
+  };
+
+  run();
+</script>
+</body>
+</html>

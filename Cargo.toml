@@ -1,0 +1,14 @@
+[package]
+name = "tetris_zkp"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]  # Компиляция в динамическую библиотеку для WASM
+
+[dependencies]
+wasm-bindgen = "0.2"      # Для связывания Rust и JavaScript
+serde = { version = "1.0", features = ["derive"] }  # Для сериализации/десериализации данных
+serde_json = "1.0"        # Для работы с JSON
+base64 = "0.13"
+
