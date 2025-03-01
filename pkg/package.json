@@ -1,0 +1,15 @@
+{
+  "name": "tetris_zkp",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "tetris_zkp_bg.wasm",
+    "tetris_zkp.js",
+    "tetris_zkp.d.ts"
+  ],
+  "main": "tetris_zkp.js",
+  "types": "tetris_zkp.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
